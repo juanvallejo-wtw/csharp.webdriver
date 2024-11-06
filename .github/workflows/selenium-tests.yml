@@ -1,0 +1,95 @@
+# Workflow Code: CosmicFalcon_v1   DO NOT REMOVE
+# Purpose:
+#    Runs Selenium C# tests in GitHub Actions with a manual trigger.
+#    Allows users to initiate the workflow manually.
+#
+# Frequency:
+#    - This workflow is intended to be reusable, and used once per repository.
+#
+# Projects to use this Template with:
+#    - Testing projects that use Selenium C#.
+#
+# Prerequisites:
+#    - Ensure that Selenium dependencies are installed in the project.
+
+name: 🧪 Run Selenium C# Tests
+run-name: 🧪 Run Selenium C# Tests on ${{ inputs.environment }} with ${{ inputs.browser }} browser
+
+concurrency:
+  group: selenium-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch-tag-sha:
+        description: Branch/Tag/SHA; The branch, tag, or SHA of the Selenium tests to run.
+        required: false
+      environment:
+        description: The environment to test against
+        required: true
+        type: choice
+        options:
+          - dev
+          - qa
+          - stage
+      browser:
+        description: Browser to use for the tests.
+        type: choice
+        options:
+          - chrome
+          - firefox
+          - edge
+      test-filter:
+        description: Test Filter - input the test category or name to run.
+        required: false
+        default: '' 
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+env:
+  DISPATCH_REF: ${{ inputs.branch-tag-sha || github.ref_name }}
+  SELENIUM_TEST_DIR: 'csharp.webdriver/Selenium' # Update this path to your Selenium test root directory
+  SELENIUM_RESULTS_DIR: 'csharp.webdriver/Selenium/TestResults' # Update this path to your Selenium test results directory
+  TIMEZONE: America/Denver
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DISPATCH_REF }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.x' # Specify the .NET version used by the Selenium WebDriver in C# project
+
+      - name: Install Dependencies
+        run: dotnet restore ${{ env.SELENIUM_TEST_DIR }}
+
+      - name: Build Project
+        run: dotnet build ${{ env.SELENIUM_TEST_DIR }} --no-restore --configuration Release
+
+      - name: Run Selenium Tests
+        working-directory: '${{ env.SELENIUM_TEST_DIR }}'
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          dotnet test --configuration Release \
+          --logger "trx;LogFileName=test-results.trx" \
+          ${{ inputs.test-filter != '' && format('--filter "{0}"', inputs.test-filter) || '' }}
+
+      - name: Publish Test Results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-test-results
+          path: ${{ env.SELENIUM_RESULTS_DIR }}
+          retention-days: 5
