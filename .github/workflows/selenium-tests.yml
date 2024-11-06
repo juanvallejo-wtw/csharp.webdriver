@@ -52,8 +52,8 @@ permissions:
 
 env:
   DISPATCH_REF: ${{ inputs.branch-tag-sha || github.ref_name }}
-  SELENIUM_TEST_DIR: 'csharp.webdriver/Selenium' # Update this path to your Selenium test root directory
-  SELENIUM_RESULTS_DIR: 'csharp.webdriver/Selenium/TestResults' # Update this path to your Selenium test results directory
+  SELENIUM_TEST_DIR: 'Selenium' # Updated path to match the structure
+  SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # Update if needed
   TIMEZONE: America/Denver
 
 jobs:
@@ -69,7 +69,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '6.x' # Specify the .NET version used by the Selenium WebDriver in C# project
+          dotnet-version: '6.x' # Adjust this if the project requires a different version
 
       - name: Install Dependencies
         run: dotnet restore ${{ env.SELENIUM_TEST_DIR }}
