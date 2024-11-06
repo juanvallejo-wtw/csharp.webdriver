@@ -82,9 +82,7 @@ jobs:
         env:
           ENVIRONMENT: ${{ inputs.environment }}
         run: |
-          dotnet test --configuration Release \
-          --logger "trx;LogFileName=test-results.trx" \
-          ${{ inputs.test-filter != '' && format('--filter "{0}"', inputs.test-filter) || '' }}
+          dotnet test --configuration Release --logger "trx;LogFileName=test-results.trx" ${{ inputs.test-filter != '' && format('--filter "{0}"', inputs.test-filter) || '' }}
 
       - name: Publish Test Results
         if: ${{ always() }}
