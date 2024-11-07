@@ -22,15 +22,6 @@ namespace Selenium.core
         {
             // Quit the browser after tests are complete
             Driver.Page.Quit();
-
-            // Log relevant configuration details
-            Console.WriteLine("Test Run Configuration:");
-            Console.WriteLine($"Browser: {Config.Browser}");
-            Console.WriteLine($"Platform: {Config.Platform}");
-            Console.WriteLine($"Base URL: {Config.BaseUrl}");
-            Console.WriteLine($"Using Selenium Grid: {Config.UseSeleniumGrid}");
-            Console.WriteLine($"Using Sauce Labs: {Config.UseSauceLabs}");
-            Console.WriteLine($"Using BrowserStack: {Config.UseBrowserstack}");
         }
     }
 }
