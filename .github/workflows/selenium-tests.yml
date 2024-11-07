@@ -65,8 +65,8 @@ permissions:
 
 env:
   DISPATCH_REF: ${{ inputs.branch-tag-sha || github.ref_name }}
-  SELENIUM_TEST_DIR: 'Selenium'
-  SELENIUM_RESULTS_DIR: 'Selenium/TestResults'
+  SELENIUM_TEST_DIR: 'Selenium' # TODO: Update this to the root directory of the Selenium tests
+  SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # TODO: Update this to the results output directory
   TIMEZONE: America/Denver
 
 jobs:
@@ -103,6 +103,7 @@ jobs:
           ref: ${{ env.GITHUB_REF }}
 
       - name: Set Cache Keys
+        # Cache key includes hash of all .csproj files to detect dependency changes
         run: echo "DOTNET_CACHE_KEY=dotnet_packages-${{ hashFiles('**/*.csproj') }}" >> $GITHUB_ENV
 
       - name: Check for a .NET cache
@@ -153,7 +154,7 @@ jobs:
         working-directory: '${{ env.SELENIUM_TEST_DIR }}'
         env:
           ENVIRONMENT: ${{ inputs.environment }}
-          BROWSER: ${{ inputs.browser }}
+          BROWSER: ${{ inputs.browser }}  # Passes the browser choice to the environment
         run: |
           dotnet test --configuration Release --logger "trx;LogFileName=test-results.trx" ${{ inputs.test-filter != '' && format('--filter "{0}"', inputs.test-filter) || '' }}
 
