@@ -13,6 +13,8 @@ namespace Selenium.core
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
+            //Environment.SetEnvironmentVariable("Browser", "Firefox");
+
             Driver = _factory.Value.GetBrowser(Config.Browser);
         }
 
