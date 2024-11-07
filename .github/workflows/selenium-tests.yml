@@ -1,4 +1,4 @@
-# Workflow Code: SpunkyHamster_v1   DO NOT REMOVE
+# Workflow Code: CosmicFalcon_v1   DO NOT REMOVE
 # Purpose:
 #    Runs Selenium C# tests in GitHub Actions with a manual trigger.
 #    Allows users to initiate the workflow manually.
@@ -8,11 +8,12 @@
 #
 # Projects to use this Template with:
 #    - Testing projects that use Selenium C#.
-# # TODO: Prerequisites:
+#
+# Prerequisites:
 #    - Ensure that Selenium dependencies are installed in the project.
 
 name: 🧪 Run Selenium C# Tests
-run-name: 🧪 Run Selenium C# Tests on ${{ inputs.environment == 0 && 'dev' || inputs.environment }} with ${{ inputs.browser == 0 && 'chrome' || inputs.browser }} browser
+run-name: 🧪 Run Selenium C# Tests on ${{ inputs.environment }} with ${{ inputs.browser }} browser
 
 concurrency:
   group: selenium-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
@@ -92,7 +93,6 @@ jobs:
           ref: ${{ env.GITHUB_REF }}
 
       - name: Set Cache Keys
-        # Cache for .NET packages
         run: echo "DOTNET_CACHE_KEY=dotnet_packages-${{ hashFiles('**/Selenium/packages.lock.json') }}" >> $GITHUB_ENV
 
       - name: Check for a .NET cache
@@ -110,7 +110,7 @@ jobs:
         with:
           dotnet-version: '6.x' # Adjust this if the project requires a different version
 
-      - name: Restore .NET Packages
+      - name: Restore Dependencies
         if: steps.has-cache.outputs.cache-hit != 'true'
         run: dotnet restore ${{ env.SELENIUM_TEST_DIR }}
 
@@ -122,29 +122,24 @@ jobs:
           path: |
             ~/.nuget/packages
 
-  selenium-test:
+  build-and-test:
     runs-on: windows-latest
     needs: cache
-    timeout-minutes: 60
-
-    environment: ${{ inputs.environment }}
-
-    env:
-      GITHUB_REF: ${{ needs.cache.outputs.GITHUB_REF }}
-      BROWSER: ${{ inputs.browser }} # Pass the browser input as an environment variable
-      ENVIRONMENT: ${{ inputs.environment }}
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.GITHUB_REF }}
+          ref: ${{ env.DISPATCH_REF }}
 
       - name: Build Project
-        run: dotnet build ${{ env.SELENIUM_TEST_DIR }} --no-restore --configuration Release
+        run: dotnet build ${{ env.SELENIUM_TEST_DIR }} --configuration Release
 
       - name: Run Selenium Tests
         working-directory: '${{ env.SELENIUM_TEST_DIR }}'
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          BROWSER: ${{ inputs.browser }}
         run: |
           dotnet test --configuration Release --logger "trx;LogFileName=test-results.trx" ${{ inputs.test-filter != '' && format('--filter "{0}"', inputs.test-filter) || '' }}
 
