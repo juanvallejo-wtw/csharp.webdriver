@@ -4,7 +4,7 @@
 #    Allows users to initiate the workflow manually.
 #
 # Frequency:
-#    - This workflow is intended to be reusable and customizable.
+#    - This workflow is intended to be reusable and configurable per repository.
 #
 # Projects to use this Template with:
 #    - Testing projects that use Selenium C#.
@@ -26,7 +26,7 @@ on:
         description: Branch/Tag/SHA; The branch, tag, or SHA of the Selenium tests to run.
         required: false
       environment:
-        description: The environment to test against.
+        description: The environment to test against
         required: true
         type: choice
         options:
@@ -43,16 +43,20 @@ on:
       test-filter:
         description: Test Filter - input the test category or name to run.
         required: false
-        default: '' 
-      use-cache:
-        description: Use caching for .NET dependencies.
+        default: ''
+      enable-cache:
+        description: Enable caching of .NET packages to speed up builds.
         required: false
         type: boolean
         default: true
       dotnet-version:
-        description: Specify .NET version to use.
+        description: Specify the .NET SDK version to use.
         required: false
         default: '6.x'
+      retention-days:
+        description: Number of days to retain test results.
+        required: false
+        default: 5
 
 permissions:
   id-token: write
@@ -61,23 +65,26 @@ permissions:
 
 env:
   DISPATCH_REF: ${{ inputs.branch-tag-sha || github.ref_name }}
-  SELENIUM_TEST_DIR: 'Selenium' # Adjust path to match project structure
-  SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # Update if needed
+  SELENIUM_TEST_DIR: 'Selenium'
+  SELENIUM_RESULTS_DIR: 'Selenium/TestResults'
   TIMEZONE: America/Denver
 
 jobs:
-  setup:
+  cache:
     runs-on: windows-latest
-    outputs:
-      DOTNET_CACHE_KEY: ${{ steps.set-cache-key.outputs.DOTNET_CACHE_KEY }}
-      GITHUB_REF: ${{ steps.calculate-ref.outputs.GITHUB_REF }}
-    
+    if: ${{ inputs.enable-cache }}
+
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - name: Calculate Ref to Checkout
         id: calculate-ref
         run: |
-          echo "GITHUB_REF=${{ env.DISPATCH_REF }}" >> $GITHUB_ENV
-          echo "GITHUB_REF=${{ env.DISPATCH_REF }}" >> $GITHUB_OUTPUT
+          GITHUB_REF="${{ env.DISPATCH_REF }}"
+          echo "GITHUB_REF=$GITHUB_REF" >> $GITHUB_ENV
+          echo "GITHUB_REF=$GITHUB_REF" >> $GITHUB_OUTPUT
 
       - name: Annotate Inputs
         run: |
@@ -90,28 +97,25 @@ jobs:
           | Browser                 | `${{ inputs.browser }}`                                                                   |
           | Test Filter             | `${{ inputs.test-filter != 0 && inputs.test-filter || 'NA' }}`                            |' >> $GITHUB_STEP_SUMMARY
 
-      - name: Set Cache Key
-        id: set-cache-key
-        run: echo "DOTNET_CACHE_KEY=dotnet_packages-${{ hashFiles('**/*.csproj') }}-${{ hashFiles('*.sln') }}" >> $GITHUB_ENV
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.GITHUB_REF }}
 
-  restore:
-    runs-on: windows-latest
-    needs: setup
-    if: inputs.use-cache == 'true'
+      - name: Set Cache Keys
+        run: echo "DOTNET_CACHE_KEY=dotnet_packages-${{ hashFiles('**/*.csproj') }}" >> $GITHUB_ENV
 
-    steps:
-      - name: Check for a .NET Cache
+      - name: Check for a .NET cache
         id: has-cache
         uses: actions/cache@v4
         with:
           lookup-only: true
-          key: ${{ needs.setup.outputs.DOTNET_CACHE_KEY }}
+          key: ${{ env.DOTNET_CACHE_KEY }}
           path: |
             ~/.nuget/packages
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
-        if: steps.has-cache.outputs.cache-hit != 'true'
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
 
@@ -119,23 +123,23 @@ jobs:
         if: steps.has-cache.outputs.cache-hit != 'true'
         run: dotnet restore ${{ env.SELENIUM_TEST_DIR }}
 
-      - name: Save Cache for .NET Packages
+      - name: Save cache for .NET packages
         if: steps.has-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          key: ${{ needs.setup.outputs.DOTNET_CACHE_KEY }}
+          key: ${{ env.DOTNET_CACHE_KEY }}
           path: |
             ~/.nuget/packages
 
   build-and-test:
     runs-on: windows-latest
-    needs: [setup, restore]
+    needs: cache
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.setup.outputs.GITHUB_REF }}
+          ref: ${{ env.DISPATCH_REF }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
@@ -167,4 +171,4 @@ jobs:
         with:
           name: selenium-test-results
           path: ${{ env.SELENIUM_RESULTS_DIR }}
-          retention-days: 5
+          retention-days: ${{ inputs.retention-days }}
