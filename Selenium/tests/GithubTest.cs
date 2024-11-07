@@ -17,14 +17,14 @@ namespace Selenium.tests
             page.OpenGithubPage();
 
 
-            // Log relevant configuration details
-            Console.WriteLine("Test Run Configuration:");
-            Console.WriteLine($"Browser: {Config.Browser}");
-            Console.WriteLine($"Platform: {Config.Platform}");
-            Console.WriteLine($"Base URL: {Config.BaseUrl}");
-            Console.WriteLine($"Using Selenium Grid: {Config.UseSeleniumGrid}");
-            Console.WriteLine($"Using Sauce Labs: {Config.UseSauceLabs}");
-            Console.WriteLine($"Using BrowserStack: {Config.UseBrowserstack}");
+            // Log relevant configuration details using TestContext
+            TestContext.WriteLine("Test Run Configuration:");
+            TestContext.WriteLine($"Browser: {Config.Browser}");
+            TestContext.WriteLine($"Platform: {Config.Platform}");
+            TestContext.WriteLine($"Base URL: {Config.BaseUrl}");
+            TestContext.WriteLine($"Using Selenium Grid: {Config.UseSeleniumGrid}");
+            TestContext.WriteLine($"Using Sauce Labs: {Config.UseSauceLabs}");
+            TestContext.WriteLine($"Using BrowserStack: {Config.UseBrowserstack}");
         }
     }
 }
