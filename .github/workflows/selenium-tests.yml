@@ -59,17 +59,13 @@ env:
   DISPATCH_REF: ${{ inputs.branch-tag-sha || github.ref_name }}
   SELENIUM_TEST_DIR: 'Selenium' # TODO: Update this to the root directory of the Selenium tests
   SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # TODO: Update this to the results output directory
-  DOTNET_VERSION: '6.x' # TODO: Specify the .NET SDK version to use
+  DOTNET_VERSION: '8.x' # TODO: Specify the .NET SDK version to use
   TIMEZONE: America/Denver
 
 jobs:
   cache:
     runs-on: windows-latest
     if: ${{ inputs.enable-cache }}
-
-    defaults:
-      run:
-        shell: bash
 
     steps:
       - name: Setup .NET
@@ -79,12 +75,14 @@ jobs:
 
       - name: Calculate Ref to Checkout
         id: calculate-ref
+        shell: bash
         run: |
           GITHUB_REF="${{ env.DISPATCH_REF }}"
           echo "GITHUB_REF=$GITHUB_REF" >> $GITHUB_ENV
-          echo "GITHUB_REF=$GITHUB_REF" >> $GITHUB_OUTPUT # Outputs the selected ref for later steps
+          echo "GITHUB_REF=$GITHUB_REF" >> $GITHUB_OUTPUT
 
       - name: Annotate Inputs
+        shell: bash
         run: |
           echo $'
           | Inputs                  | Value                                                                                     |
@@ -93,7 +91,7 @@ jobs:
           | Branch/Tag              | `${{ env.GITHUB_REF }}`                                                                   |
           | Workflow Branch/Tag     | `${{ github.ref_name }}` - SHA: `${{ github.sha }}`                                       |
           | Browser                 | `${{ inputs.browser }}`                                                                   |
-          | Test Filter             | `${{ inputs.test-filter != 0 && inputs.test-filter || 'NA' }}`                            |' >> $GITHUB_STEP_SUMMARY # Logs input values
+          | Test Filter             | `${{ inputs.test-filter != 0 && inputs.test-filter || 'NA' }}`                            |' >> $GITHUB_STEP_SUMMARY
 
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -101,6 +99,7 @@ jobs:
           ref: ${{ env.GITHUB_REF }}
 
       - name: Set Cache Keys
+        shell: bash
         run: echo "DOTNET_CACHE_KEY=dotnet_packages-${{ hashFiles('**/*.csproj') }}" >> $GITHUB_ENV
 
       - name: Check for a .NET cache
@@ -110,10 +109,11 @@ jobs:
           lookup-only: true
           key: ${{ env.DOTNET_CACHE_KEY }}
           path: |
-            ~/.nuget/packages # Checks for an existing cache for .NET packages
+            ~/.nuget/packages
 
       - name: Restore Dependencies
         if: steps.has-cache.outputs.cache-hit != 'true'
+        shell: bash
         run: dotnet restore ${{ env.SELENIUM_TEST_DIR }}
 
       - name: Save cache for .NET packages
@@ -140,23 +140,26 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Build Project
+        shell: bash
         run: dotnet build ${{ env.SELENIUM_TEST_DIR }} --configuration Release
 
       - name: Run Selenium Tests # Executes Selenium C# tests with customizable environment and browser settings
-        working-directory: '${{ env.SELENIUM_TEST_DIR }}' # Specifies the directory where Selenium tests are located
-        env: # Overrides default values from appsettings.json for flexible test configuration; add more variables here as needed
-          ENVIRONMENT: ${{ inputs.environment }} # Defines the target testing environment (e.g., dev, qa, stage)
-          BROWSER: ${{ inputs.browser }} # Sets the browser for test execution (e.g., Chrome, Firefox, Edge)
+        working-directory: '${{ env.SELENIUM_TEST_DIR }}'
+        shell: bash
+        env: 
+          ENVIRONMENT: ${{ inputs.environment }}
+          BROWSER: ${{ inputs.browser }}
         run: |
           dotnet test --configuration Release \
-          --logger "console;verbosity=detailed" \ 
-          --logger "trx;LogFileName=test-results.trx" \ 
-          --filter "${{ inputs.test-filter }}" 
+          --logger "console;verbosity=detailed" \
+          --logger "trx;LogFileName=test-results.trx" \
+          --filter "${{ inputs.test-filter }}"
 
       # Uncomment the following step and remove the previous step to run tests specifically in the QualityPractices_Automation framework.
       # This configuration allows customization through environment variables such as Browser, BaseUrl, and other settings.
       # - name: Run Selenium Tests (QualityPractices_Automation) # Executes Selenium C# tests using QualityPractices_Automation framework
-      #   working-directory: '${{ env.SELENIUM_TEST_DIR }}' # Sets the working directory to the TestRunner.CLI folder
+      #   working-directory: '${{ env.SELENIUM_TEST_DIR }}'
+      #   shell: bash
       #   env: 
       #     ASSEMBLY: 'Tests.DemoApp' # TODO: Set the target test assembly here, e.g., replace 'Tests.DemoApp' with the relevant assembly name
       #     ATTRIBUTE: 'HealthCheck' # TODO: Specify the test attribute for filtering (e.g., use 'HealthCheck' to run tests marked with this attribute)
@@ -166,19 +169,20 @@ jobs:
       #     CONCURRENCY: '3' # TODO: Define the level of concurrency (e.g., 3 to allow up to 3 tests to run in parallel)
       #   run: |
       #     dotnet run \
-      #     --asmb $ASSEMBLY \ 
-      #     --attr $ATTRIBUTE \ 
-      #     --u $BASE_URL \ 
-      #     --b $BROWSER \ 
-      #     --tm $TIMEOUT \ 
-      #     --c $CONCURRENCY 
+      #     --asmb $ASSEMBLY \
+      #     --attr $ATTRIBUTE \
+      #     --u $BASE_URL \
+      #     --b $BROWSER \
+      #     --tm $TIMEOUT \
+      #     --c $CONCURRENCY
 
       - name: Copy Test Results to Results Folder
         if: ${{ always() }}
         continue-on-error: true
+        shell: bash
         run: |
-          mkdir -p ${{ env.SELENIUM_RESULTS_DIR }}/reports # Creates a directory for test reports
-          cp -r ${{ env.SELENIUM_TEST_DIR }}/TestResults/*.trx ${{ env.SELENIUM_RESULTS_DIR }}/reports # Copies test results
+          mkdir -p ${{ env.SELENIUM_RESULTS_DIR }}/reports
+          cp -r ${{ env.SELENIUM_TEST_DIR }}/TestResults/*.trx ${{ env.SELENIUM_RESULTS_DIR }}/reports
 
       - name: Upload Selenium Test Report
         if: ${{ !cancelled() && always() }}
