@@ -18,7 +18,7 @@ run-name: 🧪 Run Scheduled Selenium C# Tests
 
 on:
   schedule:
-        - cron: '*/4 * * * *' # Runs every 5 minutes
+        - cron: '*/5 * * * *' # Runs every 5 minutes
         
 permissions:
   id-token: write
