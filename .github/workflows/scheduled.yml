@@ -1,0 +1,144 @@
+# Workflow Code: CosmicFalcon_v1   DO NOT REMOVE
+# Purpose:
+#    Runs Selenium C# tests in GitHub Actions on a schedule.
+#
+# Frequency:
+#    - This workflow is intended to be reusable and used once per repository, triggered at scheduled intervals.
+#
+# Projects to use this Template with:
+#    - Testing projects that use Selenium C#.
+#
+# TODO Prerequisites:
+#    - Add Application Insights secret (APPLICATIONINSIGHTS_CONNECTION_STRING) to every environment you are testing.
+#    - Update your Selenium solution to export test results to Application Insights using the IM.ExportToAppInsights NuGet package. 
+#      Detailed setup guidance can be found here: https://github.com/im-practices/techhub/blob/QAP-390-UI-Health-Check-ADR/docs/Azure/content/Health-Checks/Selenium-UI-Health-Check.md
+
+name: 🧪 Scheduled Selenium C# Tests
+run-name: 🧪 Run Scheduled Selenium C# Tests
+
+on:
+  schedule:
+        - cron: '*/4 * * * *' # Runs every 5 minutes
+        
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+env:
+  DISPATCH_REF: main
+  SELENIUM_TEST_DIR: 'Selenium' # TODO: Update this to the root directory of the Selenium tests
+  SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # TODO: Update this to the results output directory
+  DOTNET_VERSION: '8.x' # TODO: Specify the .NET SDK version to use
+  TIMEZONE: America/Denver
+  ENVIRONMENT: 'dev' # TODO: Set the default environment
+  BROWSER: 'Chrome' # TODO: Set the default browser
+  TEST_FILTER: 'TestMethod' # TODO: Define test filter if necessary
+
+jobs:
+  cache:
+    runs-on: windows-latest
+
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Calculate Ref to Checkout
+        id: calculate-ref
+        shell: bash
+        run: |
+          GITHUB_REF="${{ env.DISPATCH_REF }}"
+          echo "GITHUB_REF=$GITHUB_REF" >> $GITHUB_ENV
+          echo "GITHUB_REF=$GITHUB_REF" >> $GITHUB_OUTPUT
+
+      - name: Annotate Inputs
+        shell: bash
+        run: |
+          echo $'
+          | Inputs                  | Value                                                                                     |
+          | ----------------------- | ----------------------------------------------------------------------------------------- |
+          | Environment             | `${{ env.ENVIRONMENT }}`                                                                  |
+          | Branch/Tag              | `${{ env.GITHUB_REF }}`                                                                   |
+          | Browser                 | `${{ env.BROWSER }}`                                                                      |
+          | Test Filter             | `${{ env.TEST_FILTER }}`                                                                  |' >> $GITHUB_STEP_SUMMARY
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.GITHUB_REF }}
+
+      - name: Set Cache Keys
+        shell: bash
+        run: echo "DOTNET_CACHE_KEY=dotnet_packages-${{ hashFiles('**/*.csproj') }}" >> $GITHUB_ENV
+
+      - name: Check for a .NET cache
+        id: has-cache
+        uses: actions/cache@v4
+        with:
+          lookup-only: true
+          key: ${{ env.DOTNET_CACHE_KEY }}
+          path: |
+            ~/.nuget/packages
+
+      - name: Restore Dependencies
+        if: steps.has-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: dotnet restore ${{ env.SELENIUM_TEST_DIR }}
+
+      - name: Save cache for .NET packages
+        if: steps.has-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ env.DOTNET_CACHE_KEY }}
+          path: |
+            ~/.nuget/packages
+
+  build-and-test:
+    runs-on: im-linux
+    needs: cache
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DISPATCH_REF }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build Project
+        shell: bash
+        run: dotnet build ${{ env.SELENIUM_TEST_DIR }} --configuration Release
+
+      - name: Run Selenium Tests
+        working-directory: '${{ env.SELENIUM_TEST_DIR }}'
+        shell: bash
+        env: 
+          ENVIRONMENT: ${{ env.ENVIRONMENT }}
+          BROWSER: ${{ env.BROWSER }}
+        run: |
+          dotnet test --configuration Release \
+          --logger "console;verbosity=detailed" \
+          --logger "trx;LogFileName=test-results.trx" \
+          --filter "${{ env.TEST_FILTER }}"
+
+      - name: Copy Test Results to Results Folder
+        if: ${{ always() }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p ${{ env.SELENIUM_RESULTS_DIR }}/reports
+          cp -r ${{ env.SELENIUM_TEST_DIR }}/TestResults/*.trx ${{ env.SELENIUM_RESULTS_DIR }}/reports
+
+      - name: Upload Selenium Test Report
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-test-results
+          path: ${{ env.SELENIUM_RESULTS_DIR }}
+          retention-days: 5
