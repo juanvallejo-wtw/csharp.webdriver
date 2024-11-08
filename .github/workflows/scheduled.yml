@@ -95,7 +95,7 @@ jobs:
             ~/.nuget/packages
 
   build-and-test:
-    runs-on: im-linux
+    runs-on: windows-latest
     needs: cache
 
     steps:
