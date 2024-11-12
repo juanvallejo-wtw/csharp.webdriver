@@ -17,6 +17,7 @@ name: 🧪 Scheduled Selenium C# Tests
 run-name: 🧪 Run Scheduled Selenium C# Tests
 
 on:
+  workflow_dispatch:
   schedule: # TODO: Update the schedule to run at the desired frequency. Do not run more than every 30 minutes to avoid undue load on the system.  
     - cron: '5 * * * *' # Run Every hour
     # - cron: '1/30 * * * *' # Uncomment to run every 30 minutes
