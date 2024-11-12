@@ -1,18 +1,3 @@
-# Workflow Code: CosmicFalcon_v1   DO NOT REMOVE
-# Purpose:
-#    Runs Selenium C# tests in GitHub Actions on a schedule.
-#
-# Frequency:
-#    - Workflow template for running Selenium tests on a schedule. This workflow supports the UI Health Check feature
-#
-# Projects to use this Template with:
-#    - Testing projects that use Selenium C#.
-#
-# TODO Prerequisites:
-#    - Add Application Insights secret (APPLICATIONINSIGHTS_CONNECTION_STRING) to every environment you are testing.
-#    - Update your Selenium solution to export test results to Application Insights using the IM.ExportToAppInsights NuGet package. 
-#      Detailed setup guidance can be found here: https://github.com/im-practices/techhub/blob/main/docs/Azure/content/Health-Checks/Selenium-UI-Health-Check.md
-
 name: 🧪 Scheduled Selenium C# Tests
 run-name: 🧪 Run Scheduled Selenium C# Tests
 
@@ -20,8 +5,6 @@ on:
   workflow_dispatch:  # Allows for manual trigger
   schedule:           # Runs on a defined schedule
     - cron: '59 * * * *' # Run every hour
-    # - cron: '1/30 * * * *' # Uncomment to run every 30 minutes
-    # - cron: '1/40 * * * *' # Uncomment to run every 40 minutes
 
 permissions:
   id-token: write
@@ -30,14 +13,15 @@ permissions:
 
 env:
   DISPATCH_REF: master
-  SELENIUM_TEST_DIR: 'Selenium' # TODO: Update this to the root directory of the Selenium tests
-  SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # TODO: Update this to the results output directory
-  DOTNET_VERSION: '8.x' # TODO: Specify the .NET SDK version to use
+  SELENIUM_TEST_DIR: 'Selenium' # Update this to the root directory of the Selenium tests
+  SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # Update this to the results output directory
+  DOTNET_VERSION: '8.x' # Specify the .NET SDK version to use
   DOTNET_INSTALL_DIR: './.dotnet'  
   NUGET_CACHE_PATH: '~/.nuget/packages'
   TIMEZONE: America/Denver
-  BROWSER: 'Chrome' # TODO: Set the default browser
-  TEST_FILTER: 'TestMethod' # TODO: Define test filter if necessary
+  ENVIRONMENTS: '["dev","qa"]' # Define environments as JSON string
+  BROWSER: 'Chrome' # Set the default browser
+  TEST_FILTER: 'TestMethod' # Define test filter if necessary
 
 jobs:
   nuget-cache:
@@ -45,6 +29,7 @@ jobs:
     
     outputs:
       NUGET_CACHE_KEY: ${{ env.NUGET_CACHE_KEY }}
+      ENVIRONMENTS: ${{ env.ENVIRONMENTS }} # Export ENVIRONMENTS as an output
 
     steps:
       - name: Checkout Repository
@@ -52,7 +37,7 @@ jobs:
         with:
           ref: ${{ env.DISPATCH_REF }}
           
-      - name: Setup .NET  # TODO: Delete if action runner contains the dotnet version you need.
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
@@ -89,7 +74,7 @@ jobs:
     
     strategy:
       matrix:
-        environment: ["dev", "qa"] # Define the environments directly here
+        environment: ${{ fromJson(needs.nuget-cache.outputs.ENVIRONMENTS) }} # Use the output from nuget-cache job
       fail-fast: false
 
     env:
@@ -102,7 +87,7 @@ jobs:
         with:
           ref: ${{ env.DISPATCH_REF }}
 
-      - name: Setup .NET # TODO: Delete if action runner contains the dotnet version you need.
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
