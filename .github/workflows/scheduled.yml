@@ -17,9 +17,9 @@ name: 🧪 Scheduled Selenium C# Tests
 run-name: 🧪 Run Scheduled Selenium C# Tests
 
 on:
-  workflow_dispatch:
-  schedule: # TODO: Update the schedule to run at the desired frequency. Do not run more than every 30 minutes to avoid undue load on the system.  
-    - cron: '59 * * * *' # Run Every hour
+  workflow_dispatch:  # Allows for manual trigger
+  schedule:           # Runs on a defined schedule
+    - cron: '59 * * * *' # Run every hour
     # - cron: '1/30 * * * *' # Uncomment to run every 30 minutes
     # - cron: '1/40 * * * *' # Uncomment to run every 40 minutes
 
@@ -36,7 +36,6 @@ env:
   DOTNET_INSTALL_DIR: './.dotnet'  
   NUGET_CACHE_PATH: '~/.nuget/packages'
   TIMEZONE: America/Denver
-  ENVIRONMENTS: '["dev","qa"]' # Define environments as a JSON array
   BROWSER: 'Chrome' # TODO: Set the default browser
   TEST_FILTER: 'TestMethod' # TODO: Define test filter if necessary
 
@@ -59,7 +58,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
         env:
           DOTNET_INSTALL_DIR: ${{ env.DOTNET_INSTALL_DIR }}
-    
+
       - name: Set Cache Keys
         shell: bash
         run: echo "NUGET_CACHE_KEY=nuget-${{ hashFiles('**/*.csproj') }}" >> $GITHUB_ENV
@@ -90,7 +89,7 @@ jobs:
     
     strategy:
       matrix:
-        environment: ${{ fromJson(env.ENVIRONMENTS) }}
+        environment: ["dev", "qa"] # Define the environments directly here
       fail-fast: false
 
     env:
@@ -98,7 +97,10 @@ jobs:
       NUGET_CACHE_KEY: ${{ needs.nuget-cache.outputs.NUGET_CACHE_KEY }}
 
     steps:
-    
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DISPATCH_REF }}
 
       - name: Setup .NET # TODO: Delete if action runner contains the dotnet version you need.
         uses: actions/setup-dotnet@v4
