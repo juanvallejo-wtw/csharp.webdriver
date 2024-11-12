@@ -17,9 +17,8 @@ name: 🧪 Scheduled Selenium C# Tests
 run-name: 🧪 Run Scheduled Selenium C# Tests
 
 on:
-  workflow_dispatch:  # Allows for manual trigger
-  schedule:           # Runs on a defined schedule
-    - cron: '59 * * * *' # Run every hour
+  schedule: # TODO: Update the schedule to run at the desired frequency. Do not run more than every 30 minutes to avoid undue load on the system.  
+    - cron: '59 * * * *' # Run Every hour
     # - cron: '1/30 * * * *' # Uncomment to run every 30 minutes
     # - cron: '1/40 * * * *' # Uncomment to run every 40 minutes
 
@@ -30,40 +29,36 @@ permissions:
 
 env:
   DISPATCH_REF: master
-  SELENIUM_TEST_DIR: './csharp.webdriver/Selenium' # TODO: Update this to the root directory of the Selenium tests
-  SELENIUM_RESULTS_DIR: './csharp.webdriver/Selenium/TestResults' # TODO: Update this to the results output directory
+  SELENIUM_TEST_DIR: 'Selenium' # TODO: Update this to the root directory of the Selenium tests
+  SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # TODO: Update this to the results output directory
   DOTNET_VERSION: '8.x' # TODO: Specify the .NET SDK version to use
   DOTNET_INSTALL_DIR: './.dotnet'  
   NUGET_CACHE_PATH: '~/.nuget/packages'
   TIMEZONE: America/Denver
+  ENVIRONMENTS: '["dev","qa"]' # Define environments as a JSON array
   BROWSER: 'Chrome' # TODO: Set the default browser
   TEST_FILTER: 'TestMethod' # TODO: Define test filter if necessary
 
 jobs:
   nuget-cache:
-    runs-on: ubuntu-latest
+    runs-on: im-linux
     
     outputs:
       NUGET_CACHE_KEY: ${{ env.NUGET_CACHE_KEY }}
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DISPATCH_REF }}
+          
       - name: Setup .NET  # TODO: Delete if action runner contains the dotnet version you need.
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
         env:
           DOTNET_INSTALL_DIR: ${{ env.DOTNET_INSTALL_DIR }}
-          
-      - name: Debug - List All Files in Repository
-        run: |
-          echo "Listing all files in repository:"
-          find . -type f
-
-      - name: Debug - List Root Directory Structure
-        run: |
-          echo "Listing root directory structure:"
-          ls -la
-          
+    
       - name: Set Cache Keys
         shell: bash
         run: echo "NUGET_CACHE_KEY=nuget-${{ hashFiles('**/*.csproj') }}" >> $GITHUB_ENV
@@ -89,12 +84,12 @@ jobs:
           path: ${{ env.NUGET_CACHE_PATH }} 
 
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: im-linux
     needs: nuget-cache
     
     strategy:
       matrix:
-        environment: ["dev", "qa"] # Define the environments directly here
+        environment: ${{ fromJson(env.ENVIRONMENTS) }}
       fail-fast: false
 
     env:
@@ -102,10 +97,7 @@ jobs:
       NUGET_CACHE_KEY: ${{ needs.nuget-cache.outputs.NUGET_CACHE_KEY }}
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.DISPATCH_REF }}
+    
 
       - name: Setup .NET # TODO: Delete if action runner contains the dotnet version you need.
         uses: actions/setup-dotnet@v4
