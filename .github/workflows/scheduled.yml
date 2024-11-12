@@ -29,7 +29,7 @@ jobs:
     
     outputs:
       NUGET_CACHE_KEY: ${{ env.NUGET_CACHE_KEY }}
-      ENVIRONMENTS: ${{ env.ENVIRONMENTS }} # Export ENVIRONMENTS as an output
+      MATRIX: '{ environment: ${{ env.ENVIRONMENTS }} }'
 
     steps:
       - name: Checkout Repository
@@ -73,8 +73,7 @@ jobs:
     needs: nuget-cache
     
     strategy:
-      matrix:
-        environment: ${{ fromJson(needs.nuget-cache.outputs.ENVIRONMENTS) }} # Use the output from nuget-cache job
+      matrix: ${{ fromJson(needs.nuget-cache.outputs.MATRIX) }} # Parse the MATRIX output as JSON
       fail-fast: false
 
     env:
