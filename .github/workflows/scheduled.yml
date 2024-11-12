@@ -3,7 +3,7 @@
 #    Runs Selenium C# tests in GitHub Actions on a schedule.
 #
 # Frequency:
-#    - This workflow is intended to be reusable and used once per repository, triggered at scheduled intervals.
+#    - Workflow template for running Selenium tests on a schedule. This workflow supports the UI Health Check feature
 #
 # Projects to use this Template with:
 #    - Testing projects that use Selenium C#.
@@ -11,14 +11,17 @@
 # TODO Prerequisites:
 #    - Add Application Insights secret (APPLICATIONINSIGHTS_CONNECTION_STRING) to every environment you are testing.
 #    - Update your Selenium solution to export test results to Application Insights using the IM.ExportToAppInsights NuGet package. 
-#      Detailed setup guidance can be found here: https://github.com/im-practices/techhub/blob/QAP-390-UI-Health-Check-ADR/docs/Azure/content/Health-Checks/Selenium-UI-Health-Check.md
+#      Detailed setup guidance can be found here: https://github.com/im-practices/techhub/blob/main/docs/Azure/content/Health-Checks/Selenium-UI-Health-Check.md
 
 name: 🧪 Scheduled Selenium C# Tests
 run-name: 🧪 Run Scheduled Selenium C# Tests
 
 on:
-  workflow_dispatch:
-        
+  schedule: # TODO: Update the schedule to run at the desired frequency. Do not run more than every 30 minutes to avoid undue load on the system.  
+    - cron: '5 * * * *' # Run Every hour
+    # - cron: '1/30 * * * *' # Uncomment to run every 30 minutes
+    # - cron: '1/40 * * * *' # Uncomment to run every 40 minutes
+
 permissions:
   id-token: write
   contents: read
@@ -29,57 +32,39 @@ env:
   SELENIUM_TEST_DIR: 'Selenium' # TODO: Update this to the root directory of the Selenium tests
   SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # TODO: Update this to the results output directory
   DOTNET_VERSION: '8.x' # TODO: Specify the .NET SDK version to use
+  DOTNET_INSTALL_DIR: './.dotnet'  
+  NUGET_CACHE_PATH: '~/.nuget/packages'
   TIMEZONE: America/Denver
-  ENVIRONMENT: 'dev' # TODO: Set the default environment
+  ENVIRONMENTS: '["dev","qa"]' # Define environments as a JSON array
   BROWSER: 'Chrome' # TODO: Set the default browser
   TEST_FILTER: 'TestMethod' # TODO: Define test filter if necessary
 
 jobs:
-  cache:
-    runs-on: windows-latest
+  nuget-cache:
+    runs-on: ubuntu-latest
+    
+    outputs:
+      NUGET_CACHE_KEY: ${{ env.NUGET_CACHE_KEY }}
 
     steps:
-      - name: Setup .NET
+      - name: Setup .NET  # TODO: Delete if action runner contains the dotnet version you need.
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Calculate Ref to Checkout
-        id: calculate-ref
-        shell: bash
-        run: |
-          GITHUB_REF="${{ env.DISPATCH_REF }}"
-          echo "GITHUB_REF=$GITHUB_REF" >> $GITHUB_ENV
-          echo "GITHUB_REF=$GITHUB_REF" >> $GITHUB_OUTPUT
-
-      - name: Annotate Inputs
-        shell: bash
-        run: |
-          echo $'
-          | Inputs                  | Value                                                                                     |
-          | ----------------------- | ----------------------------------------------------------------------------------------- |
-          | Environment             | `${{ env.ENVIRONMENT }}`                                                                  |
-          | Branch/Tag              | `${{ env.GITHUB_REF }}`                                                                   |
-          | Browser                 | `${{ env.BROWSER }}`                                                                      |
-          | Test Filter             | `${{ env.TEST_FILTER }}`                                                                  |' >> $GITHUB_STEP_SUMMARY
-
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.GITHUB_REF }}
+        env:
+          DOTNET_INSTALL_DIR: ${{ env.DOTNET_INSTALL_DIR }}
 
       - name: Set Cache Keys
         shell: bash
-        run: echo "DOTNET_CACHE_KEY=dotnet_packages-${{ hashFiles('**/*.csproj') }}" >> $GITHUB_ENV
-
+        run: echo "NUGET_CACHE_KEY=nuget-${{ hashFiles('**/*.csproj') }}" >> $GITHUB_ENV
+                
       - name: Check for a .NET cache
         id: has-cache
         uses: actions/cache@v4
         with:
           lookup-only: true
-          key: ${{ env.DOTNET_CACHE_KEY }}
-          path: |
-            ~/.nuget/packages
+          key: ${{ env.NUGET_CACHE_KEY }}
+          path: ${{ env.NUGET_CACHE_PATH }}
 
       - name: Restore Dependencies
         if: steps.has-cache.outputs.cache-hit != 'true'
@@ -90,13 +75,21 @@ jobs:
         if: steps.has-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          key: ${{ env.DOTNET_CACHE_KEY }}
-          path: |
-            ~/.nuget/packages
+          key: ${{ env.NUGET_CACHE_KEY }}
+          path: ${{ env.NUGET_CACHE_PATH }} 
 
   build-and-test:
-    runs-on: windows-latest
-    needs: cache
+    runs-on: ubuntu-latest
+    needs: nuget-cache
+    
+    strategy:
+      matrix:
+        environment: ${{ fromJson(env.ENVIRONMENTS) }}
+      fail-fast: false
+
+    env:
+      ENVIRONMENT: ${{ matrix.environment }}
+      NUGET_CACHE_KEY: ${{ needs.nuget-cache.outputs.NUGET_CACHE_KEY }}
 
     steps:
       - name: Checkout Repository
@@ -104,10 +97,19 @@ jobs:
         with:
           ref: ${{ env.DISPATCH_REF }}
 
-      - name: Setup .NET
+      - name: Setup .NET # TODO: Delete if action runner contains the dotnet version you need.
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Download NuGet Cache
+        id: restore-nuget-cache
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ env.NUGET_CACHE_KEY }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+          path: ${{ env.NUGET_CACHE_PATH }}
 
       - name: Build Project
         shell: bash
@@ -116,9 +118,10 @@ jobs:
       - name: Run Selenium Tests
         working-directory: '${{ env.SELENIUM_TEST_DIR }}'
         shell: bash
-        env: 
-          ENVIRONMENT: ${{ env.ENVIRONMENT }}
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
           BROWSER: ${{ env.BROWSER }}
+          APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
         run: |
           dotnet test --configuration Release \
           --logger "console;verbosity=detailed" \
