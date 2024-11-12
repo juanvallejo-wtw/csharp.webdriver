@@ -30,8 +30,8 @@ permissions:
 
 env:
   DISPATCH_REF: master
-  SELENIUM_TEST_DIR: 'Selenium' # TODO: Update this to the root directory of the Selenium tests
-  SELENIUM_RESULTS_DIR: 'Selenium/TestResults' # TODO: Update this to the results output directory
+  SELENIUM_TEST_DIR: './csharp.webdriver/Selenium' # TODO: Update this to the root directory of the Selenium tests
+  SELENIUM_RESULTS_DIR: './csharp.webdriver/Selenium/TestResults' # TODO: Update this to the results output directory
   DOTNET_VERSION: '8.x' # TODO: Specify the .NET SDK version to use
   DOTNET_INSTALL_DIR: './.dotnet'  
   NUGET_CACHE_PATH: '~/.nuget/packages'
