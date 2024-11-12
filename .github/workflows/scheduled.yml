@@ -54,19 +54,15 @@ jobs:
         env:
           DOTNET_INSTALL_DIR: ${{ env.DOTNET_INSTALL_DIR }}
           
-      - name: Debug - List Directory Structure
+      - name: Debug - List All Files in Repository
+        run: |
+          echo "Listing all files in repository:"
+          find . -type f
+
+      - name: Debug - List Root Directory Structure
         run: |
           echo "Listing root directory structure:"
           ls -la
-          echo "Listing csharp.webdriver directory structure:"
-          ls -la ./csharp.webdriver
-          echo "Listing Selenium directory structure:"
-          ls -la ./csharp.webdriver/Selenium
-
-      - name: Debug - Find Project Files
-        run: |
-          echo "Searching for .csproj or .sln files in the repository:"
-          find . -name "*.csproj" -or -name "*.sln"
           
       - name: Set Cache Keys
         shell: bash
