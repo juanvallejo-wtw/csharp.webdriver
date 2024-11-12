@@ -17,9 +17,8 @@ name: 🧪 Scheduled Selenium C# Tests
 run-name: 🧪 Run Scheduled Selenium C# Tests
 
 on:
-  workflow_dispatch:
-  schedule: # TODO: Update the schedule to run at the desired frequency. Do not run more than every 30 minutes to avoid undue load on the system.  
-    - cron: '5 * * * *' # Run Every hour
+  schedule: # TODO: Update the schedule to run at the desired frequency. Do not run more than every 30 minutes to avoid undue load on the system.
+    - cron: '59 * * * *' # Run Every hour
     # - cron: '1/30 * * * *' # Uncomment to run every 30 minutes
     # - cron: '1/40 * * * *' # Uncomment to run every 40 minutes
 
@@ -36,7 +35,6 @@ env:
   DOTNET_INSTALL_DIR: './.dotnet'  
   NUGET_CACHE_PATH: '~/.nuget/packages'
   TIMEZONE: America/Denver
-  ENVIRONMENTS: '["dev","qa"]' # Define environments as a JSON array
   BROWSER: 'Chrome' # TODO: Set the default browser
   TEST_FILTER: 'TestMethod' # TODO: Define test filter if necessary
 
@@ -85,7 +83,7 @@ jobs:
     
     strategy:
       matrix:
-        environment: ${{ fromJson(env.ENVIRONMENTS) }}
+        environment: ["dev", "qa"] # Define the environments directly here
       fail-fast: false
 
     env:
