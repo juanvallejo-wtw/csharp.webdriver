@@ -3,8 +3,8 @@ run-name: 🧪 Run Scheduled Selenium C# Tests
 
 on:
   workflow_dispatch:  # Allows for manual trigger
-  schedule:           # Runs on a defined schedule
-    - cron: '59 * * * *' # Run every hour
+  # schedule:           # Runs on a defined schedule
+  #  - cron: '59 * * * *' # Run every hour
 
 permissions:
   id-token: write
