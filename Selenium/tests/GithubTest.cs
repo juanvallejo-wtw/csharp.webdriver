@@ -2,7 +2,6 @@
 using Selenium.core;
 using Selenium.core.browsers;
 using Selenium.pages;
-using System;
 
 namespace Selenium.tests
 {
